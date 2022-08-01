@@ -17,12 +17,16 @@
   },
   "sprintf": {
     "parameters": 2,
+    "parameter_names": ["buffer","format"],
+    "condition": ["None"],
     "family": "output",
     "safe": "no",
     "alternative": "snprintf"
   },
   "snprintf": {
     "parameters": 3,
+    "parameter_names": ["buffer","buffer size", "format"],
+    "condition": ["0 >= 1"],
     "family": "output",
     "safe": "yes",
     "alternative": "none"

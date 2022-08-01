@@ -28,6 +28,13 @@ X86_32_REGISTERS = ['eax',
                     'esi',
                     'edi']
 
+
+def is_register(operand):
+    """
+    Checks if a given operand is a x86-64 register
+    """
+    return operand in X86_64_REGISTERS or operand in X86_32_REGISTERS
+
 def is_32bit(register):
     """
     Checks if a register is 32 bit

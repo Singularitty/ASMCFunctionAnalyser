@@ -112,6 +112,9 @@ class Interface:
                 print(self.parser.return_instruction_at(address))
             case 'get sequence' | 'sequence':
                 self.__display_code_section()
+            case 'analyse':
+                a = dp.Analyser(self.parser)
+                a.full_analysis()
             case 'test':
                 a = dp.Analyser(self.parser)
                 a.test(input('Address: '))

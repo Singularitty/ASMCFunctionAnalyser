@@ -6,6 +6,16 @@ import json
 # User modules
 import x86_registers
 
+class bcolors:
+    HEADER = '\033[95m'
+    OKBLUE = '\033[94m'
+    OKCYAN = '\033[96m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[31m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
 
 class Disassembler:
     """
@@ -116,11 +126,6 @@ class Instruction:
             case _:
                 return None, None
 
-    def is_register(self, operand):
-        """
-        Checks if a given operand is a x86-64 register
-        """
-        return operand in x86_registers.X86_64_REGISTERS or operand in x86_registers.X86_32_REGISTERS
 
     def return_operands(self):
         """
@@ -304,6 +309,7 @@ class Analyser:
         self.registers = {'rax': None,
                           'rbx': None,
                           'rcx': None,
+                          'rdx': None,
                           'rsi': None,
                           'rdi': None,
                           'rbp': None,
@@ -362,7 +368,7 @@ class Analyser:
             # Get the operands of the current instruction
             ops = inst.return_operands()
             # Check if the target operand is a register
-            if inst.is_register(ops[0]):
+            if x86_registers.is_register(ops[0]):
                 # Interpret the instruction in order to determine the value of register
                 register, value = inst.interpret_instruction()
                 # Check if the register is 32 bit, if so convert it to 64
@@ -370,7 +376,8 @@ class Analyser:
                     register = x86_registers.convert_32_to_64(register)
                 # If a value is given to the register, record it
                 if value is not None:
-                    self.registers[register] = value
+                    if self.registers[register] is None or x86_registers.is_register(self.registers[register]):
+                        self.registers[register] = value
                     # Now check if any of the registers point to another register
                     for reg, val in self.registers.items():
                         # if a register points to another register, assign the other registers value
@@ -420,25 +427,33 @@ class Analyser:
                     case '>=' | '>':
                         if val1 < val2:
                             vulnerable = True
-                            print("Warning: Risk of Stack buffer Overflow from bad function parameterization")
+                            print(bcolors.FAIL + \
+                                  "Warning: Risk of Stack buffer Overflow from bad function parameterization" + \
+                                  bcolors.ENDC)
                             print(f"{self.c_functions_database[f_name]['parameter_names'][ind1]} (={val1}) < " + \
                                   f"{self.c_functions_database[f_name]['parameter_names'][ind2]} (={val2})")
                     case '<=' | '<':
                         if val1 > val2:
                             vulnerable = True
-                            print("Warning: Risk of Stack buffer Overflow from bad function parameterization")
+                            print(bcolors.FAIL + \
+                                  "Warning: Risk of Stack buffer Overflow from bad function parameterization" + \
+                                  bcolors.ENDC)
                             print(f"{self.c_functions_database[f_name]['parameter_names'][ind1]} (={val1}) > " + \
                                   f"{self.c_functions_database[f_name]['parameter_names'][ind2]} (={val2})")
                     case '=':
                         if val1 != val2:
                             vulnerable = True
-                            print("Warning: Risk of Stack buffer Overflow from bad function parameterization")
+                            print(bcolors.FAIL + \
+                                  "Warning: Risk of Stack buffer Overflow from bad function parameterization" + \
+                                  bcolors.ENDC)
                             print(f"{self.c_functions_database[f_name]['parameter_names'][ind1]} (={val1}) != " + \
                                   f"{self.c_functions_database[f_name]['parameter_names'][ind2]} (={val2})")
                     case _:
                         print("Could not interpret condition. Please check the json file.")
         if not vulnerable:
-            print("\nNo obvious stack buffer overflow vulnerabilities were detected from the function parameters.")
+            print(bcolors.OKGREEN + \
+                  "No obvious stack buffer overflow vulnerabilities were detected from the function parameters." + \
+                  bcolors.ENDC)
 
     def __display_function_name(self, f_name):
         """
@@ -456,22 +471,48 @@ class Analyser:
         result = result[:-2] + ")\'"
         return result
 
-    def display_found_arguments(self, f_call_addr):
+    def __display_found_arguments(self, f_call_addr):
         f_name = self.found_c_function_calls[f_call_addr]
         number_arguments = self.c_functions_database[f_name]['parameters']
         if number_arguments > len(self.param_order):
             print("Arguments saved on the stack will not be displayed")
         print(f"Arguments found for function {self.__display_function_name(f_name)}")
         for i, register in enumerate(self.param_order[:number_arguments]):
-            print(f"{self.c_functions_database[f_name]['parameter_names'][i]}: {register} = {self.registers[register]}")
+            param = self.c_functions_database[f_name]['parameter_names'][i]
+            if "buffer" in param:
+                print(f"{param}: {register} = {self.registers[register]} (Size = {self.__determine_buffer_size(register)})")
+            else:
+                print(f"{param}: {register} = {self.registers[register]}")
 
-    def display_found(self):
-        self.__c_family_detector()
-        print(self.found_c_function_calls)
-        self.__warn_unsafe_function()
 
-
-    def test(self, f_call_addr):
+    def __test(self, f_call_addr):
         self.__determine_f_register_values(f_call_addr)
-        self.display_found_arguments(f_call_addr)
+        self.__display_found_arguments(f_call_addr)
         self.__verify_argument_validity(f_call_addr)
+
+
+    def full_analysis(self):
+        """
+        Runs a full analysis on the disassembled binary file.
+        It searches for c-family functions according to a list of functions specified in the file
+        c_functions.json. It then alerts if any of the functions detected are specified as unsafe, and analyses
+        the disassembled code to determine the parameters passed on to those functions. If the functions are
+        found to be badly parameterized it gives a warning specifying which parameters are the offending ones and
+        how they are badly parameterized.
+        """
+        self.__c_family_detector()
+        print("Found the following C-family functions:\n"+\
+              f"{list(self.found_c_function_calls.values())}")
+        for (f_addr, f_name) in self.found_c_function_calls.items():
+            if self.c_functions_database[f_name]['safe'] == "no":
+                print(bcolors.FAIL + \
+                      f"\nWarning: Risk of Stack Buffer Overflow.\nUnsafe function \'{f_name}\' is called." + \
+                      bcolors.ENDC)
+                print(f"\nAnalysing \'{self.found_c_function_calls[f_addr]}\' at Address: 0x{f_addr}:")
+                self.__determine_f_register_values(f_addr)
+                self.__display_found_arguments(f_addr)
+            else:
+                print(f"\nAnalysing {self.found_c_function_calls[f_addr]} at Address: 0x{f_addr}:")
+                self.__determine_f_register_values(f_addr)
+                self.__display_found_arguments(f_addr)
+                self.__verify_argument_validity(f_addr)
