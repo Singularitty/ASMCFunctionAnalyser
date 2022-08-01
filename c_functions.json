@@ -1,0 +1,30 @@
+{
+  "gets": {
+    "parameters": 1,
+    "parameter_names": ["buffer"],
+    "condition" : ["None"],
+    "family": "input gets",
+    "safe": "no",
+    "alternative": "fgets"
+  },
+  "fgets": {
+    "parameters": 3,
+    "parameter_names": ["buffer","buffer size","stream"],
+    "condition" : ["0 >= 1"],
+    "family": "input gets",
+    "safe": "yes",
+    "alternative": "none"
+  },
+  "sprintf": {
+    "parameters": 2,
+    "family": "output",
+    "safe": "no",
+    "alternative": "snprintf"
+  },
+  "snprintf": {
+    "parameters": 3,
+    "family": "output",
+    "safe": "yes",
+    "alternative": "none"
+  }
+}
