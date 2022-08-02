@@ -16,16 +16,16 @@
     "alternative": "none"
   },
   "sprintf": {
-    "parameters": 2,
-    "parameter_names": ["buffer","format"],
+    "parameters": 3,
+    "parameter_names": ["buffer","format", "argument list"],
     "condition": ["None"],
     "family": "output",
     "safe": "no",
     "alternative": "snprintf"
   },
   "snprintf": {
-    "parameters": 3,
-    "parameter_names": ["buffer","buffer size", "format"],
+    "parameters": 4,
+    "parameter_names": ["buffer", "buffer size", "format", "argument list"],
     "condition": ["0 >= 1"],
     "family": "output",
     "safe": "yes",

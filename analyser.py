@@ -394,10 +394,10 @@ class Analyser:
                  buffer size or if the value of the register does not conform to the specified format it returns 0
         """
         register_value = self.registers[register]
-        hex_re = r'(\[r[sb]?p[-+]?)?(0?[xX]?[0-9a-fA-F]+)\]?'
+        hex_re = r'.*(0[xX][0-9a-fA-F]+).*'
         matches = re.match(hex_re, register_value)
         if matches:
-            hex_value = matches.group(2)
+            hex_value = matches.group(1)
             buffer_size = int(hex_value, 16)
             return buffer_size
         else:
